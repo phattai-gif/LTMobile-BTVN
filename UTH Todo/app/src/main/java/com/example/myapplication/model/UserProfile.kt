@@ -6,6 +6,7 @@ import com.google.firebase.auth.FirebaseUser
 data class UserProfile(
     val name: String,
     val email: String,
+    val photoUrl: String? = null,
     val isGoogleLinked: Boolean,
     val isAnonymous: Boolean
 ) {

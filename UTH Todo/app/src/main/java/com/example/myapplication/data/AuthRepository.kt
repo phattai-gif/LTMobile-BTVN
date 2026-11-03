@@ -4,7 +4,7 @@ import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.auth.FirebaseUser
 import com.google.firebase.auth.GoogleAuthProvider
 
-/** OOP: lớp duy nhất làm việc trực tiếp với FirebaseAuth. */
+/** Firebase Authentication. */
 class AuthRepository(private val auth: FirebaseAuth = FirebaseAuth.getInstance()) {
 
     val currentUser: FirebaseUser? get() = auth.currentUser

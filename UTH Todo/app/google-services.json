@@ -1,6 +1,7 @@
 {
   "project_info": {
     "project_number": "125488955004",
+    "firebase_url": "https://uth-todo-cd58c-default-rtdb.firebaseio.com",
     "project_id": "uth-todo-cd58c",
     "storage_bucket": "uth-todo-cd58c.firebasestorage.app"
   },

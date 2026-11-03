@@ -1,28 +1,44 @@
 package com.example.myapplication.model
 
 import androidx.compose.ui.graphics.Color
+import com.google.firebase.firestore.DocumentSnapshot
 
 enum class TaskCategory(val label: String, val emoji: String, val bg: Color, val fg: Color) {
     STUDY("Học tập", "🎓", Color(0xFFDDE6FB), Color(0xFF2F5BEA)),
-    LIFE("Cuộc sống", "🏠", Color(0xFFFDE5D4), Color(0xFFC2631F))
+    LIFE("Cuộc sống", "🏠", Color(0xFFFDE5D4), Color(0xFFC2631F));
+    companion object {
+        fun fromName(name: String?) = entries.firstOrNull { it.name == name } ?: LIFE
+    }
 }
 
+/** Một công việc. Được lưu ở Firestore: users/{uid}/tasks/{id}. */
 data class TaskItem(
+    val id: String = "",
     val title: String,
     val category: TaskCategory,
     val time: String,
-    val done: Boolean = false
-)
-
-/** Dữ liệu mẫu cho trang chủ (chưa lưu database). */
-object SampleTasks {
-    val all = listOf(
-        TaskItem("Nộp bài tập Lập trình di động", TaskCategory.STUDY, "09:00", true),
-        TaskItem("Ôn chương 3 – Cấu trúc dữ liệu", TaskCategory.STUDY, "14:00"),
-        TaskItem("Đi chợ mua đồ cho tuần", TaskCategory.LIFE, "17:30"),
-        TaskItem("Tập thể dục 30 phút", TaskCategory.LIFE, "06:30", true),
-        TaskItem("Làm slide thuyết trình", TaskCategory.STUDY, "20:00"),
-        TaskItem("Giặt đồ", TaskCategory.LIFE, "19:00", true),
-        TaskItem("Đọc tài liệu Firebase", TaskCategory.STUDY, "21:00")
+    val done: Boolean = false,
+    val createdAt: Long = System.currentTimeMillis()
+) {
+    fun toMap(): Map<String, Any> = mapOf(
+        "title" to title,
+        "category" to category.name,
+        "time" to time,
+        "done" to done,
+        "createdAt" to createdAt
     )
+
+    companion object {
+        fun from(doc: DocumentSnapshot): TaskItem? {
+            val title = doc.getString("title") ?: return null
+            return TaskItem(
+                id = doc.id,
+                title = title,
+                category = TaskCategory.fromName(doc.getString("category")),
+                time = doc.getString("time") ?: "",
+                done = doc.getBoolean("done") ?: false,
+                createdAt = doc.getLong("createdAt") ?: 0L
+            )
+        }
+    }
 }

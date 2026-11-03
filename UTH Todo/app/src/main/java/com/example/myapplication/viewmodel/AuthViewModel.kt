@@ -16,6 +16,8 @@ import com.example.myapplication.R
 import com.example.myapplication.data.AuthRepository
 import com.example.myapplication.model.AuthUiState
 import com.example.myapplication.model.UserProfile
+import com.example.myapplication.util.Analytics
+import com.example.myapplication.util.CrashReporter
 import com.google.android.libraries.identity.googleid.GetGoogleIdOption
 import com.google.android.libraries.identity.googleid.GoogleIdTokenCredential
 import com.google.firebase.FirebaseNetworkException
@@ -33,6 +35,12 @@ class AuthViewModel : ViewModel() {
         private set
 
     val isLoggedIn: Boolean get() = repository.currentUser != null
+    val uid: String? get() = repository.currentUser?.uid
+
+    init {
+        // Gắn uid cho Analytics và Crashlytics khi mở lại app đã đăng nhập
+        uid?.let { Analytics.setUser(it); CrashReporter.setUser(it) }
+    }
 
     fun signInWithGoogle(context: Context) {
         if (uiState is AuthUiState.Loading) return
@@ -40,9 +48,8 @@ class AuthViewModel : ViewModel() {
 
         viewModelScope.launch {
             try {
-                // default_web_client_id do plugin google-services tự sinh ra
-
-                val webClientId = "125488955004-d1frg9sv2vl8tlrhjo08hq4j31egji12.apps.googleusercontent.com";    val option = GetGoogleIdOption.Builder()
+                val webClientId = context.getString(R.string.default_web_client_id)
+                val option = GetGoogleIdOption.Builder()
                     .setFilterByAuthorizedAccounts(false)
                     .setServerClientId(webClientId)
                     .build()
@@ -55,7 +62,7 @@ class AuthViewModel : ViewModel() {
                     credential.type == GoogleIdTokenCredential.TYPE_GOOGLE_ID_TOKEN_CREDENTIAL
                 ) {
                     val idToken = GoogleIdTokenCredential.createFrom(credential.data).idToken
-                    repository.signInWithGoogle(idToken, ::handleResult)
+                    repository.signInWithGoogle(idToken) { handleResult(it, "google") }
                 } else {
                     uiState = AuthUiState.Error("Loại tài khoản này chưa được hỗ trợ")
                 }
@@ -64,8 +71,10 @@ class AuthViewModel : ViewModel() {
             } catch (e: NoCredentialException) {
                 uiState = AuthUiState.Error("Không tìm thấy tài khoản Google trên thiết bị")
             } catch (e: GetCredentialException) {
+                CrashReporter.record(e)
                 uiState = AuthUiState.Error("Đăng nhập Google thất bại: ${e.message ?: "lỗi không xác định"}")
             } catch (e: Exception) {
+                CrashReporter.record(e)
                 uiState = AuthUiState.Error(e.toUserMessage())
             }
         }
@@ -74,19 +83,24 @@ class AuthViewModel : ViewModel() {
     fun signInAnonymously() {
         if (uiState is AuthUiState.Loading) return
         uiState = AuthUiState.Loading
-        repository.signInAnonymously(::handleResult)
+        repository.signInAnonymously { handleResult(it, "anonymous") }
     }
 
-    private fun handleResult(result: Result<FirebaseUser>) {
+    private fun handleResult(result: Result<FirebaseUser>, method: String) {
         result
             .onSuccess {
                 profile = UserProfile.from(it)
+                Analytics.login(method)
+                Analytics.setUser(it.uid)
+                CrashReporter.setUser(it.uid)
                 uiState = AuthUiState.Success
             }
-            .onFailure { uiState = AuthUiState.Error(it.toUserMessage()) }
+            .onFailure {
+                CrashReporter.record(it)
+                uiState = AuthUiState.Error(it.toUserMessage())
+            }
     }
 
-    /** Gọi sau khi UI đã hiển thị xong thông báo. */
     fun consumeState() {
         uiState = AuthUiState.Idle
     }
@@ -95,6 +109,8 @@ class AuthViewModel : ViewModel() {
         repository.signOut()
         profile = null
         uiState = AuthUiState.Idle
+        Analytics.setUser(null)
+        CrashReporter.setUser(null)
     }
 
     private fun Throwable.toUserMessage(): String = when (this) {

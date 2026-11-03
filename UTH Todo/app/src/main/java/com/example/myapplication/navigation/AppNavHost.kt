@@ -15,8 +15,8 @@ import com.example.myapplication.ui.screens.OnboardingScreen
 import com.example.myapplication.ui.screens.ProfileScreen
 import com.example.myapplication.ui.screens.SplashScreen
 import com.example.myapplication.viewmodel.AuthViewModel
+import com.example.myapplication.viewmodel.TaskViewModel
 
-/** Chuyển màn và xoá sạch back stack (bấm Back sẽ không quay lại màn cũ). */
 private fun NavController.navigateClearStack(route: String) {
     navigate(route) {
         popUpTo(0) { inclusive = true }
@@ -27,15 +27,14 @@ private fun NavController.navigateClearStack(route: String) {
 @Composable
 fun AppNavHost() {
     val navController = rememberNavController()
-    // ViewModel dùng chung cho Login, Home, Profile
     val authViewModel: AuthViewModel = viewModel()
+    val taskViewModel: TaskViewModel = viewModel()
 
     NavHost(navController = navController, startDestination = Screen.Splash.route) {
 
         composable(Screen.Splash.route) {
             SplashScreen(
                 onFinished = {
-                    // Đã đăng nhập từ trước -> vào thẳng trang chủ
                     if (authViewModel.isLoggedIn) navController.navigateClearStack(Screen.Home.route)
                     else navController.navigateClearStack(Screen.Onboarding.createRoute(0))
                 }
@@ -72,6 +71,8 @@ fun AppNavHost() {
         composable(Screen.Home.route) {
             HomeScreen(
                 profile = authViewModel.profile,
+                uid = authViewModel.uid,
+                taskViewModel = taskViewModel,
                 onOpenProfile = { navController.navigate(Screen.Profile.route) }
             )
         }
@@ -79,8 +80,11 @@ fun AppNavHost() {
         composable(Screen.Profile.route) {
             ProfileScreen(
                 profile = authViewModel.profile,
+                tasks = taskViewModel.tasks,
+                lastSync = taskViewModel.lastSync,
                 onBack = { navController.popBackStack() },
                 onLogout = {
+                    taskViewModel.stop()
                     authViewModel.signOut()
                     navController.navigateClearStack(Screen.Login.route)
                 }
