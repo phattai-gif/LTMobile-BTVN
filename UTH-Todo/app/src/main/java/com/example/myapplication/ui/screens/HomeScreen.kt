@@ -59,7 +59,8 @@ fun HomeScreen(
     uid: String?,
     taskViewModel: TaskViewModel,
     onOpenProfile: () -> Unit,
-    onNavigateToTaskList: (String?) -> Unit = {}
+    onNavigateToTaskList: (String?) -> Unit = {},
+    onOpenTaskDetail: (Long) -> Unit = {}
 ) {
     val context = LocalContext.current
     val soon = { msg: String -> Toast.makeText(context, msg, Toast.LENGTH_SHORT).show() }
@@ -389,7 +390,7 @@ fun HomeScreen(
                             }
                         },
                         onClick = {
-                            soon("Chi tiết việc: ${task.title}")
+                            onOpenTaskDetail(task.id)
                         }
                     )
                 }

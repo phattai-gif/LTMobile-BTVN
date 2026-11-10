@@ -14,6 +14,7 @@ import com.example.myapplication.ui.screens.LoginScreen
 import com.example.myapplication.ui.screens.OnboardingScreen
 import com.example.myapplication.ui.screens.ProfileScreen
 import com.example.myapplication.ui.screens.SplashScreen
+import com.example.myapplication.ui.screens.TaskDetailScreen
 import com.example.myapplication.ui.screens.TaskListScreen
 import com.example.myapplication.viewmodel.AuthViewModel
 import com.example.myapplication.viewmodel.TaskViewModel
@@ -79,6 +80,9 @@ fun AppNavHost() {
                     navController.navigate(Screen.TaskList.createRoute(category)) {
                         launchSingleTop = true
                     }
+                },
+                onOpenTaskDetail = { taskId ->
+                    navController.navigate(Screen.TaskDetail.createRoute(taskId))
                 }
             )
         }
@@ -103,7 +107,29 @@ fun AppNavHost() {
                         launchSingleTop = true
                     }
                 },
-                onNavigateToProfile = { navController.navigate(Screen.Profile.route) }
+                onNavigateToProfile = { navController.navigate(Screen.Profile.route) },
+                onOpenTaskDetail = { taskId ->
+                    navController.navigate(Screen.TaskDetail.createRoute(taskId))
+                }
+            )
+        }
+
+        composable(
+            route = Screen.TaskDetail.route,
+            arguments = listOf(
+                navArgument(Screen.TaskDetail.ARG_TASK_ID) {
+                    type = NavType.LongType
+                }
+            )
+        ) { entry ->
+            val taskId = entry.arguments?.getLong(Screen.TaskDetail.ARG_TASK_ID) ?: 0L
+            TaskDetailScreen(
+                taskId = taskId,
+                taskViewModel = taskViewModel,
+                onBack = { navController.popBackStack() },
+                onEditTask = {
+                    // Tính năng mở form sửa công việc
+                }
             )
         }
 

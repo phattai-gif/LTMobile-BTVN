@@ -174,6 +174,35 @@ class TaskViewModel(
         }
     }
 
+    fun getTask(id: Long): TaskItem? = tasks.firstOrNull { it.id == id }
+
+    fun updateSubtasks(taskId: Long, newSubtasks: List<com.example.myapplication.model.SubtaskItem>) {
+        tasks = tasks.map {
+            if (it.id == taskId) it.copy(subtasks = newSubtasks) else it
+        }
+        viewModelScope.launch {
+            val result = repository.patchTask(taskId, com.example.myapplication.model.PatchTaskRequest(subtasks = newSubtasks))
+            if (result.isSuccess) {
+                val updated = result.getOrNull()
+                if (updated != null) {
+                    tasks = tasks.map { if (it.id == updated.id) updated else it }
+                }
+            }
+        }
+    }
+
+    fun deleteTask(taskId: Long, onSuccess: () -> Unit, onError: (String) -> Unit) {
+        tasks = tasks.filter { it.id != taskId }
+        viewModelScope.launch {
+            val result = repository.deleteTask(taskId)
+            if (result.isSuccess) {
+                onSuccess()
+            } else {
+                onError(result.exceptionOrNull()?.message ?: "Không thể xóa công việc")
+            }
+        }
+    }
+
     fun setApiToken(token: String) {
         ApiClient.mockApiToken = token.trim()
         loadTasks()

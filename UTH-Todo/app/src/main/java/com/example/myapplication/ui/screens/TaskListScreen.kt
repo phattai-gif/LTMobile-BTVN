@@ -54,7 +54,7 @@ fun TaskListScreen(
     taskViewModel: TaskViewModel,
     onNavigateToHome: () -> Unit,
     onNavigateToProfile: () -> Unit,
-    onOpenTaskDetail: (TaskItem) -> Unit = {}
+    onOpenTaskDetail: (Long) -> Unit = {}
 ) {
     val context = LocalContext.current
     val soon = { msg: String -> Toast.makeText(context, msg, Toast.LENGTH_SHORT).show() }
@@ -281,7 +281,7 @@ fun TaskListScreen(
                                     Toast.makeText(context, "Tuyệt, đã xong một việc!", Toast.LENGTH_SHORT).show()
                                 }
                             },
-                            onClick = { onOpenTaskDetail(task) }
+                            onClick = { onOpenTaskDetail(task.id) }
                         )
                     }
                 }
@@ -304,7 +304,7 @@ fun TaskListScreen(
                             onToggle = {
                                 taskViewModel.toggleTask(task)
                             },
-                            onClick = { onOpenTaskDetail(task) }
+                            onClick = { onOpenTaskDetail(task.id) }
                         )
                     }
                 }

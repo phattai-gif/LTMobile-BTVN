@@ -50,45 +50,99 @@ class TaskRepository {
     }
 
     /**
-     * Gọi PATCH /tasks/{id}
-     * Cập nhật trạng thái 'done' của công việc.
+     * Gọi GET /tasks/{id}
      */
-    suspend fun patchTaskDone(id: Long, done: Boolean): Result<TaskItem> = withContext(Dispatchers.IO) {
-        // Cập nhật optimistic vào bộ nhớ cục bộ trước
-        val index = localTasks.indexOfFirst { it.id == id }
-        if (index != -1) {
-            localTasks[index] = localTasks[index].copy(done = done)
-        }
-
+    suspend fun getTaskById(id: Long): Result<TaskItem> = withContext(Dispatchers.IO) {
+        // Kiểm tra local trước
+        val local = localTasks.firstOrNull { it.id == id }
         try {
-            val response = api.patchTask(
-                authHeader = ApiClient.authHeader(),
-                id = id,
-                body = PatchTaskRequest(done = done)
-            )
+            val response = api.getTask(ApiClient.authHeader(), id)
             if (response.isSuccessful && response.body() != null) {
-                val updated = response.body()!!
+                val item = response.body()!!
                 val idx = localTasks.indexOfFirst { it.id == id }
-                if (idx != -1) {
-                    localTasks[idx] = updated
-                }
-                Result.success(updated)
+                if (idx != -1) localTasks[idx] = item else localTasks.add(item)
+                Result.success(item)
+            } else if (response.code() == 404) {
+                Result.failure(Exception("Không tìm thấy công việc."))
+            } else if (local != null) {
+                Result.success(local)
             } else {
-                val errorBody = response.errorBody()?.string()
-                val errorMsg = parseErrorMessage(errorBody, response.code())
-                // Nếu call server thất bại nhưng local đã update, ta vẫn giữ local cho trải nghiệm mượt mà
-                val fallbackItem = localTasks.firstOrNull { it.id == id }
-                    ?: TaskItem(id = id, done = done)
-                Result.success(fallbackItem)
+                val errorMsg = parseErrorMessage(response.errorBody()?.string(), response.code())
+                Result.failure(Exception(errorMsg))
             }
         } catch (e: Exception) {
             CrashReporter.record(e)
-            // Lỗi mạng: giữ cập nhật offline
-            val fallbackItem = localTasks.firstOrNull { it.id == id }
-                ?: TaskItem(id = id, done = done)
-            Result.success(fallbackItem)
+            if (local != null) Result.success(local)
+            else Result.failure(Exception("Không tải được thông tin công việc."))
         }
     }
+
+    /**
+     * Gọi PATCH /tasks/{id} với các field cần đổi (done, subtasks, title,...)
+     */
+    suspend fun patchTask(id: Long, request: PatchTaskRequest): Result<TaskItem> = withContext(Dispatchers.IO) {
+        val idx = localTasks.indexOfFirst { it.id == id }
+        if (idx != -1) {
+            val cur = localTasks[idx]
+            localTasks[idx] = cur.copy(
+                done = request.done ?: cur.done,
+                subtasks = request.subtasks ?: cur.subtasks,
+                title = request.title ?: cur.title,
+                note = request.note ?: cur.note,
+                category = request.category ?: cur.category,
+                date = request.date ?: cur.date,
+                time = request.time ?: cur.time,
+                priority = request.priority ?: cur.priority,
+                remind = request.remind ?: cur.remind
+            )
+        }
+
+        try {
+            val response = api.patchTask(ApiClient.authHeader(), id, request)
+            if (response.isSuccessful && response.body() != null) {
+                val updated = response.body()!!
+                val i = localTasks.indexOfFirst { it.id == id }
+                if (i != -1) localTasks[i] = updated
+                Result.success(updated)
+            } else {
+                val fallback = localTasks.firstOrNull { it.id == id }
+                    ?: TaskItem(id = id)
+                Result.success(fallback)
+            }
+        } catch (e: Exception) {
+            CrashReporter.record(e)
+            val fallback = localTasks.firstOrNull { it.id == id }
+                ?: TaskItem(id = id)
+            Result.success(fallback)
+        }
+    }
+
+    /**
+     * Gọi DELETE /tasks/{id}
+     */
+    suspend fun deleteTask(id: Long): Result<Unit> = withContext(Dispatchers.IO) {
+        localTasks.removeAll { it.id == id }
+        try {
+            val response = api.deleteTask(ApiClient.authHeader(), id)
+            if (response.isSuccessful || response.code() == 204) {
+                Result.success(Unit)
+            } else if (response.code() == 404) {
+                Result.failure(Exception("Không tìm thấy công việc."))
+            } else {
+                Result.success(Unit) // Vẫn coi như xoá thành công phía client
+            }
+        } catch (e: Exception) {
+            CrashReporter.record(e)
+            Result.success(Unit)
+        }
+    }
+
+    /**
+     * Gọi PATCH /tasks/{id}
+     * Cập nhật trạng thái 'done' của công việc.
+     */
+    suspend fun patchTaskDone(id: Long, done: Boolean): Result<TaskItem> =
+        patchTask(id, PatchTaskRequest(done = done))
 
     fun getLocalCachedTasks(): List<TaskItem> = localTasks.toList()
 
