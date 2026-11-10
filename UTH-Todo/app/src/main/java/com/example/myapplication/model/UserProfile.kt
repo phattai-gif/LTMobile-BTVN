@@ -45,7 +45,7 @@ data class UserProfile(
             name = user.displayName?.takeIf { it.isNotBlank() }
                 ?: if (user.isAnonymous) "Khách" else "Người dùng",
             email = user.email?.takeIf { it.isNotBlank() }
-                ?: if (user.isAnonymous) "Chưa đăng nhập tài khoản" else "",
+                ?: if (user.isAnonymous) "Chưa liên kết tài khoản" else "",
             isGoogleLinked = user.providerData.any { it.providerId == "google.com" },
             isAnonymous = user.isAnonymous
         )

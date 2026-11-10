@@ -134,6 +134,7 @@ fun AppNavHost() {
         }
 
         composable(Screen.Profile.route) {
+            val context = androidx.compose.ui.platform.LocalContext.current
             ProfileScreen(
                 profile = authViewModel.profile,
                 tasks = taskViewModel.tasks,
@@ -142,7 +143,11 @@ fun AppNavHost() {
                 onLogout = {
                     taskViewModel.stop()
                     authViewModel.signOut()
+                    android.widget.Toast.makeText(context, "Đã đăng xuất", android.widget.Toast.LENGTH_SHORT).show()
                     navController.navigateClearStack(Screen.Login.route)
+                },
+                onLinkGoogle = {
+                    authViewModel.signInWithGoogle(context)
                 }
             )
         }
